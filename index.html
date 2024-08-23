@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1">
+    <title>3D City Exploration</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+        }
+        #joystick-container, #joystick {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        #joystick-container {
+            bottom: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+        #joystick {
+            width: 50px;
+            height: 50px;
+            left: 25px;
+            top: 25px;
+        }
+        #money-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="joystick-container">
+        <div id="joystick"></div>
+    </div>
+    <div id="money-display">Money: 70</div> <!-- Displaying initial money -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Basic Setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ground
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(2000, 2000),
+            new THREE.MeshLambertMaterial({ color: 0x888888 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Lighting
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(50, 100, 50);
+        scene.add(light);
+
+        // Player Setup
+        const player = new THREE.Object3D();
+        player.position.set(0, 5, 0);
+        scene.add(player);
+
+        camera.position.set(0, 2, 0);
+        player.add(camera); // Attach camera directly to the player for first-person perspective
+
+        // Money System
+        let money = 70;
+        const moneyDisplay = document.getElementById('money-display');
+
+        function updateMoneyDisplay() {
+            moneyDisplay.innerText = `Money: ${money}`;
+        }
+
+        function deductMoney(amount) {
+            if (money >= amount) {
+                money -= amount;
+                updateMoneyDisplay();
+                return true;
+            } else {
+                alert("Not enough money!");
+                return false;
+            }
+        }
+
+        // Create Mosque
+        function createMosque() {
+            const dome = new THREE.Mesh(
+                new THREE.SphereGeometry(40, 32, 32),
+                new THREE.MeshBasicMaterial({ color: 0xD4AF37 })
+            );
+            dome.position.set(200, 50, 0);
+            scene.add(dome);
+
+            const minaret = new THREE.Mesh(
+                new THREE.CylinderGeometry(10, 10, 120, 32),
+                new THREE.MeshBasicMaterial({ color: 0xC0C0C0 })
+            );
+            minaret.position.set(140, 60, 0);
+            scene.add(minaret);
+
+            const carpet = new THREE.Mesh(
+                new THREE.PlaneGeometry(80, 120),
+                new THREE.MeshLambertMaterial({
+                    map: new THREE.TextureLoader().load('https://threejsfundamentals.org/threejs/resources/images/flower-1.jpg')
+                })
+            );
+            carpet.rotation.x = -Math.PI / 2;
+            carpet.position.set(200, 0.1, 0);
+            scene.add(carpet);
+        }
+
+        // Create a House
+        function createHouse(position) {
+            const house = new THREE.Group();
+
+            const walls = new THREE.Mesh(
+                new THREE.BoxGeometry(50, 30, 50),
+                new THREE.MeshLambertMaterial({ color: 0xa0522d })
+            );
+            house.add(walls);
+
+            const roof = new THREE.Mesh(
+                new THREE.ConeGeometry(35, 20, 4),
+                new THREE.MeshLambertMaterial({ color: 0x8b0000 })
+            );
+            roof.position.y = 25;
+            roof.rotation.y = Math.PI / 4;
+            house.add(roof);
+
+            const bed = new THREE.Mesh(
+                new THREE.BoxGeometry(20, 5, 10),
+                new THREE.MeshLambertMaterial({ color: 0x00008b })
+            );
+            bed.position.set(-10, 2.5, -10);
+            house.add(bed);
+
+            const carpet = new THREE.Mesh(
+                new THREE.PlaneGeometry(20, 20),
+                new THREE.MeshLambertMaterial({
+                    map: new THREE.TextureLoader().load('https://threejsfundamentals.org/threejs/resources/images/flower-1.jpg')
+                })
+            );
+            carpet.rotation.x = -Math.PI / 2;
+            carpet.position.set(0, 0.1, 0);
+            house.add(carpet);
+
+            const bathroom = new THREE.Mesh(
+                new THREE.BoxGeometry(15, 20, 10),
+                new THREE.MeshLambertMaterial({ color: 0x808080 })
+            );
+            bathroom.position.set(15, 10, 15);
+            house.add(bathroom);
+
+            house.position.copy(position);
+            scene.add(house);
+        }
+
+        // Initialize Mosque and Houses
+        createMosque();
+
+        if (deductMoney(35)) {
+            createHouse(new THREE.Vector3(-100, 0, -100));
+        }
+        if (deductMoney(35)) {
+            createHouse(new THREE.Vector3(-200, 0, -100));
+        }
+
+        // Joystick Control
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystick = document.getElementById('joystick');
+        let isDraggingJoystick = false, joystickStartX, joystickStartY;
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            isDraggingJoystick = true;
+            const touch = e.touches[0];
+            joystickStartX = touch.clientX;
+            joystickStartY = touch.clientY;
+        });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!isDraggingJoystick) return;
+            const touch = e.touches[0];
+            let deltaX = touch.clientX - joystickStartX;
+            let deltaY = touch.clientY - joystickStartY;
+            const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+            const maxDistance = 40;
+
+            if (distance > maxDistance) {
+                deltaX *= maxDistance / distance;
+                deltaY *= maxDistance / distance;
+            }
+
+            joystick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+            player.position.x += deltaX * 0.01;
+            player.position.z += deltaY * 0.01;
+        });
+
+        joystickContainer.addEventListener('touchend', () => {
+            isDraggingJoystick = false;
+            joystick.style.transform = 'translate(0, 0)';
+        });
+
+        // Camera Control
+        let isDraggingCamera = false, prevTouchX, prevTouchY;
+
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            isDraggingCamera = true;
+            prevTouchX = touch.clientX;
+            prevTouchY = touch.clientY;
+        });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            if (!isDraggingCamera) return;
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - prevTouchX;
+            const deltaY = touch.clientY - prevTouchY;
+
+            player.rotation.y -= deltaX * 0.005;
+            player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x - deltaY * 0.005));
+
+            prevTouchX = touch.clientX;
+            prevTouchY = touch.clientY;
+        });
+
+        renderer.domElement.addEventListener('touchend', () => {
+            isDraggingCamera = false;
+        });
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
